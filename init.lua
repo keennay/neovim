@@ -155,7 +155,15 @@ local function show_tab_actions(bufnr)
 
   vim.keymap.set("n", "<CR>", run_action_at_cursor, { buffer = buf, nowait = true, silent = true })
   vim.keymap.set("n", "<LeftMouse>", function()
-    vim.schedule(run_action_at_cursor)
+    local ok, mouse = pcall(vim.fn.getmousepos)
+    if not ok or mouse.winid ~= tab_menu.win then
+      close_tab_menu()
+      return
+    end
+    vim.schedule(function()
+      vim.api.nvim_win_set_cursor(tab_menu.win, { mouse.line, math.max(mouse.column - 1, 0) })
+      run_action_at_cursor()
+    end)
   end, { buffer = buf, nowait = true, silent = true })
 
   for _, key in ipairs({ "q", "<Esc>" }) do
