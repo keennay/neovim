@@ -1,0 +1,26 @@
+<leader>e
+Toggle the Neo-tree sidebar to show or hide the Explorer rooted at the current working directory.
+
+<leader>ff
+Open Telescope’s file finder to fuzzy-search and open files relative to the current working directory.
+
+<leader>fg
+Launch Telescope live grep (ripgrep) to search for text across every file under the current working directory.
+
+<leader>fb
+Show Telescope’s buffer picker to switch between all open buffers/tabs.
+
+<leader>sr
+Open the Spectre search/replace panel for project-wide find-and-replace with filtering.
+
+<leader>sw
+Fill Spectre with the word under the cursor (normal mode) or the current visual selection (visual mode) to start a scoped search/replace.
+
+<leader>rc
+In Spectre, replace only the currently selected match/file entry.
+
+<leader>R
+In Spectre, replace every enabled match in the current result set (“Replace All”).
+
+<leader>t
+Toggle the integrated ToggleTerm terminal (12-line horizontal split) on and off.
