@@ -9,6 +9,27 @@ vim.g.mapleader = " "
 vim.opt.termguicolors = true
 vim.opt.mouse = "a"
 
+local persist_view = vim.api.nvim_create_augroup("PersistView", { clear = true })
+
+vim.api.nvim_create_autocmd("BufWinLeave", {
+  group = persist_view,
+  callback = function(event)
+    if vim.bo[event.buf].buftype == "" then
+      vim.b[event.buf].__saved_view = vim.fn.winsaveview()
+    end
+  end,
+})
+
+vim.api.nvim_create_autocmd("BufWinEnter", {
+  group = persist_view,
+  callback = function(event)
+    local view = vim.b[event.buf].__saved_view
+    if view and vim.bo[event.buf].buftype == "" then
+      vim.fn.winrestview(view)
+    end
+  end,
+})
+
 require("lazy").setup({
   {
     "nvim-neo-tree/neo-tree.nvim",
