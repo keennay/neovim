@@ -50,6 +50,10 @@ require("lazy").setup({
           width = 32,
           mappings = {
             ["<space>"] = "none",
+            h = "close_node",
+            l = "open",
+            ["<left>"] = "close_node",
+            ["<right>"] = "open",
           },
         },
         filesystem = {
