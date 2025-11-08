@@ -20,7 +20,7 @@ require("lazy").setup({
     },
     config = function()
       require("neo-tree").setup({
-        close_if_last_window = true,
+        close_if_last_window = false,
         popup_border_style = "rounded",
         enable_git_status = true,
         enable_diagnostics = false,
@@ -97,6 +97,16 @@ require("lazy").setup({
     end,
   },
   {
+    "echasnovski/mini.bufremove",
+    version = "*",
+    config = function()
+      require("mini.bufremove").setup()
+      vim.keymap.set("n", "<leader>bd", function()
+        require("mini.bufremove").delete(0, false)
+      end, { desc = "Close current buffer" })
+    end,
+  },
+  {
     "akinsho/bufferline.nvim",
     version = "*",
     dependencies = "nvim-tree/nvim-web-devicons",
@@ -108,8 +118,12 @@ require("lazy").setup({
           diagnostics = "nvim_lsp",
           show_buffer_close_icons = true,
           show_close_icon = false,
-          close_command = "bdelete! %d",
-          right_mouse_command = "bdelete! %d",
+          close_command = function(bufnr)
+            require("mini.bufremove").delete(bufnr, false)
+          end,
+          right_mouse_command = function(bufnr)
+            require("mini.bufremove").delete(bufnr, false)
+          end,
           separator_style = "slant",
           offsets = {
             {
