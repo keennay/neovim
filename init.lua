@@ -30,6 +30,164 @@ vim.api.nvim_create_autocmd("BufWinEnter", {
   end,
 })
 
+local function delete_buffer(bufnr)
+  local ok, bufremove = pcall(require, "mini.bufremove")
+  if ok then
+    bufremove.delete(bufnr, false)
+  else
+    vim.cmd(("bdelete %d"):format(bufnr))
+  end
+end
+
+local function close_all_buffers()
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.bo[buf].buflisted then
+      delete_buffer(buf)
+    end
+  end
+end
+
+local function close_saved_buffers()
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.bo[buf].buflisted and not vim.bo[buf].modified then
+      delete_buffer(buf)
+    end
+  end
+end
+
+local function with_bufferline_buf(bufnr, fn)
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return
+  end
+  vim.api.nvim_set_current_buf(bufnr)
+  local ok, bufferline = pcall(require, "bufferline")
+  if ok then
+    fn(bufferline)
+  end
+end
+
+local function close_others_for(bufnr)
+  with_bufferline_buf(bufnr, function(bufferline)
+    bufferline.close_others()
+  end)
+end
+
+local function close_right_of(bufnr)
+  with_bufferline_buf(bufnr, function(bufferline)
+    bufferline.close_in_direction("right")
+  end)
+end
+
+local tab_menu = { win = nil, buf = nil, target = nil }
+
+local function close_tab_menu()
+  if tab_menu.win and vim.api.nvim_win_is_valid(tab_menu.win) then
+    vim.api.nvim_win_close(tab_menu.win, true)
+  end
+  if tab_menu.buf and vim.api.nvim_buf_is_valid(tab_menu.buf) then
+    vim.api.nvim_buf_delete(tab_menu.buf, { force = true })
+  end
+  tab_menu.win = nil
+  tab_menu.buf = nil
+  tab_menu.target = nil
+end
+
+local function show_tab_actions(bufnr)
+  close_tab_menu()
+  tab_menu.target = bufnr
+
+  local actions = {
+    { label = "Close", fn = function() delete_buffer(bufnr) end },
+    { label = "Close Others", fn = function() close_others_for(bufnr) end },
+    { label = "Close to the Right", fn = function() close_right_of(bufnr) end },
+    { label = "Close Saved", fn = close_saved_buffers },
+    { label = "Close All", fn = close_all_buffers },
+  }
+
+  local lines = { "[-] [x]", "" }
+  local width = 7
+  for i, action in ipairs(actions) do
+    local line = string.format("%d. %s", i, action.label)
+    lines[#lines + 1] = line
+    width = math.max(width, #line)
+  end
+
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
+  vim.api.nvim_buf_set_option(buf, "filetype", "TabActions")
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  vim.api.nvim_buf_set_option(buf, "modifiable", false)
+
+  local win = vim.api.nvim_open_win(buf, true, {
+    relative = "editor",
+    style = "minimal",
+    border = "rounded",
+    width = width + 4,
+    height = #lines,
+    row = 2,
+    col = math.max(0, math.floor((vim.o.columns - (width + 4)) / 2)),
+    title = " Tab Actions ",
+    title_pos = "center",
+  })
+
+  tab_menu.buf = buf
+  tab_menu.win = win
+
+  local function run_action_at_cursor()
+    if not (tab_menu.win and vim.api.nvim_win_is_valid(tab_menu.win)) then
+      return
+    end
+    local cursor = vim.api.nvim_win_get_cursor(tab_menu.win)
+    local row = cursor[1]
+    local col = cursor[2] + 1
+    if row == 1 then
+      if (col >= 1 and col <= 3) or (col >= 5 and col <= 7) then
+        close_tab_menu()
+      end
+      return
+    end
+    local action = actions[row - 2]
+    if action then
+      close_tab_menu()
+      action.fn()
+    end
+  end
+
+  vim.keymap.set("n", "<CR>", run_action_at_cursor, { buffer = buf, nowait = true, silent = true })
+  vim.keymap.set("n", "<LeftMouse>", function()
+    vim.schedule(run_action_at_cursor)
+  end, { buffer = buf, nowait = true, silent = true })
+
+  for _, key in ipairs({ "q", "<Esc>" }) do
+    vim.keymap.set("n", key, close_tab_menu, { buffer = buf, nowait = true, silent = true })
+  end
+
+  vim.api.nvim_create_autocmd({ "BufLeave", "TabLeave" }, {
+    buffer = buf,
+    once = true,
+    callback = function()
+      close_tab_menu()
+    end,
+  })
+end
+
+local function handle_tab_click(bufnr)
+  if tab_menu.win and vim.api.nvim_win_is_valid(tab_menu.win) then
+    local previous_target = tab_menu.target
+    close_tab_menu()
+    if bufnr ~= previous_target then
+      vim.api.nvim_set_current_buf(bufnr)
+    end
+    return
+  end
+
+  if bufnr == vim.api.nvim_get_current_buf() then
+    show_tab_actions(bufnr)
+  else
+    vim.api.nvim_set_current_buf(bufnr)
+  end
+end
+
 require("lazy").setup({
   {
     "nvim-neo-tree/neo-tree.nvim",
@@ -144,11 +302,11 @@ require("lazy").setup({
           show_buffer_close_icons = true,
           show_close_icon = false,
           close_command = function(bufnr)
-            require("mini.bufremove").delete(bufnr, false)
+            delete_buffer(bufnr)
           end,
-          right_mouse_command = function(bufnr)
-            require("mini.bufremove").delete(bufnr, false)
-          end,
+          right_mouse_command = false,
+          middle_mouse_command = false,
+          left_mouse_command = handle_tab_click,
           separator_style = "slant",
           offsets = {
             {
