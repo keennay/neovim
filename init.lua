@@ -8,6 +8,8 @@ vim.opt.rtp:prepend(lazypath)
 vim.g.mapleader = " "
 -- vim.opt.termguicolors = true
 vim.opt.mouse = "a"
+vim.opt.number = true
+vim.opt.relativenumber = false
 
 local persist_view = vim.api.nvim_create_augroup("PersistView", { clear = true })
 
